@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="kaa">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat Ruletka</title>
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;background:#11151d;color:#fff;
+  font-family:Arial,sans-serif;min-height:100vh;
+}
+.wrap{max-width:520px;margin:auto;min-height:100vh;display:flex;flex-direction:column}
+header{text-align:center;padding:28px 18px 15px}
+.logo{width:105px;height:105px;border-radius:50%;object-fit:cover;box-shadow:0 5px 25px #0008}
+h1{margin:12px 0 5px;font-size:25px}
+.sub{color:#aeb6c5;font-size:14px}
+.card{
+  margin:10px 14px;padding:18px;border-radius:20px;
+  background:#1a202b;box-shadow:0 8px 25px #0005;
+}
+.status{
+  min-height:75px;display:flex;align-items:center;justify-content:center;
+  text-align:center;color:#dfe5ee;font-size:15px;
+}
+.buttons{display:grid;gap:10px}
+button{
+  border:0;border-radius:14px;padding:15px;font-size:16px;
+  font-weight:700;cursor:pointer;background:#273142;color:#fff;
+}
+button.primary{background:#2166d1}
+button.danger{background:#8d2934}
+button:disabled{opacity:.5}
+.chat{display:none;flex:1;flex-direction:column;padding:0 14px 14px}
+.messages{
+  flex:1;min-height:300px;max-height:55vh;overflow:auto;
+  background:#171c25;border-radius:18px;padding:12px;
+}
+.msg{background:#273142;padding:10px 12px;border-radius:14px;margin:7px 0;max-width:85%;word-wrap:break-word}
+.mine{margin-left:auto;background:#2166d1}
+.system{text-align:center;color:#929cad;font-size:13px;margin:10px}
+.send{display:flex;gap:8px;margin-top:10px}
+input{
+  flex:1;border:0;outline:0;border-radius:14px;padding:14px;
+  background:#273142;color:#fff;font-size:15px;
+}
+.send button{padding:0 18px}
+.small{font-size:12px;color:#7f8999;text-align:center;margin:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <img class="logo" src="/static/logo.jpg">
+  <h1>🎲 Chat Ruletka</h1>
+  <div class="sub">Tasodifiy adam menen anonim sóylesiń</div>
+</header>
+
+<div class="card" id="home">
+  <div class="status" id="status">
+    Sóylesiwdi baslaw ushın túymeni basıń.
+  </div>
+  <div class="buttons">
+    <button class="primary" id="startBtn" onclick="startSearch()">🔎 Baslaw</button>
+    <button onclick="nextUser()">➡️ Keyingi adam</button>
+    <button class="danger" onclick="stopChat()">⏹ Baslawdı toqtatıw</button>
+  </div>
+</div>
+
+<div class="chat" id="chat">
+  <div class="messages" id="messages"></div>
+  <div class="send">
+    <input id="input" placeholder="Xabar jazıń..." maxlength="1000"
+           onkeydown="if(event.key==='Enter') sendMessage()">
+    <button class="primary" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<div class="small">Chat Ruletka • Qaraqalpaqsha</div>
+</div>
+
+<script>
+const socket = io();
+const statusEl = document.getElementById("status");
+const startBtn = document.getElementById("startBtn");
+const chat = document.getElementById("chat");
+const messages = document.getElementById("messages");
+const input = document.getElementById("input");
+
+function addSystem(text){
+  const d=document.createElement("div");
+  d.className="system"; d.textContent=text;
+  messages.appendChild(d); messages.scrollTop=messages.scrollHeight;
+}
+function addMessage(text,mine){
+  const d=document.createElement("div");
+  d.className="msg"+(mine?" mine":"");
+  d.textContent=text;
+  messages.appendChild(d); messages.scrollTop=messages.scrollHeight;
+}
+function startSearch(){
+  socket.emit("find");
+  statusEl.textContent="🔎 Suhbatlasıwshı izlenbekte... Kútiń.";
+  startBtn.disabled=true;
+}
+function nextUser(){
+  socket.emit("next");
+  statusEl.textContent="🔎 Keyingi adam izlenbekte...";
+  startBtn.disabled=true;
+  chat.style.display="none";
+}
+function stopChat(){
+  socket.emit("stop");
+}
+function sendMessage(){
+  const text=input.value.trim();
+  if(!text)return;
+  socket.emit("message",{text});
+  input.value="";
+}
+socket.on("searching",()=>{
+  statusEl.textContent="🔎 Bos suhbatlasıwshı izlenbekte... Kútiń.";
+});
+socket.on("matched",()=>{
+  statusEl.textContent="🟢 Suhbatlasıwshı tabıldı!";
+  startBtn.disabled=false;
+  chat.style.display="flex";
+  messages.innerHTML="";
+  addSystem("🟢 Suhbat baslandı. Sáwbetlesiwdi baslań.");
+  input.focus();
+});
+socket.on("message",(d)=>{
+  // Socket.IO does not expose sender here; the sender's own message
+  // is also received. We mark it as normal for now.
+  addMessage(d.text,false);
+});
+socket.on("partner_left",(d)=>{
+  statusEl.textContent="⏹ Suhbat toqtadı.";
+  chat.style.display="none";
+  startBtn.disabled=false;
+  alert(d.text);
+});
+socket.on("stopped",()=>{
+  statusEl.textContent="Suhbat toqtatıldı.";
+  chat.style.display="none";
+  startBtn.disabled=false;
+});
+socket.on("system",(d)=>{statusEl.textContent=d.text;});
+</script>
+</body>
+  </html>
